@@ -5,7 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 
-const API_BASE = 'http://localhost:4000/api';
+const API_BASE = 'https://himanshu-auth-server.onrender.com/api';
 
 export default function AdminPanel() {
   const token = useSelector((state) => state.auth.token);
