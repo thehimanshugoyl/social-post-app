@@ -70,3 +70,16 @@ export const makeSelectDraftWithPlatforms = () =>
       };
     }
   );
+
+  export const selectDraftCountByPlatform = createSelector(
+  [selectAllDrafts, selectAllPlatforms],
+  (drafts, platforms) => {
+    const counts = Object.fromEntries(platforms.map((p) => [p.id, 0]));
+    for (const draft of drafts) {
+      for (const pid of draft.platformIds) {
+        counts[pid] = (counts[pid] || 0) + 1;
+      }
+    }
+    return counts;
+  }
+);

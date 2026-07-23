@@ -48,7 +48,7 @@ function timeAgo(timestamp) {
   return `${days}d ago`;
 }
 
-export default function PostCreator() {
+export default function PostCreator({ readOnly = false }) {
   const dispatch = useDispatch();
   const platforms = useSelector(selectAllPlatforms);
   const drafts = useSelector(selectAllDrafts);
@@ -78,16 +78,18 @@ export default function PostCreator() {
   );
 
   const togglePlatform = useCallback((platformId) => {
+    if (readOnly) return;
     setSaved(false);
     setSelectedPlatformIds((prev) =>
       prev.includes(platformId)
         ? prev.filter((id) => id !== platformId)
         : [...prev, platformId]
     );
-  }, []);
+  }, [readOnly]);
 
   const handleTextChange = useCallback(
     (e) => {
+      if (readOnly) return;
       const value = e.target.value;
       setText(value);
       setSaved(false);
@@ -95,19 +97,21 @@ export default function PostCreator() {
         dispatch(draftUpdated({ id: draftId, changes: { text: value } }));
       }
     },
-    [draftId, dispatch]
+    [draftId, dispatch, readOnly]
   );
 
   const handleAddMedia = useCallback((e) => {
+    if (readOnly) return;
     const files = Array.from(e.target.files || []).map((f) => ({
       name: f.name,
       type: f.type,
     }));
     setMedia((prev) => [...prev, ...files]);
     setSaved(false);
-  }, []);
+  }, [readOnly]);
 
   const handleSaveDraft = useCallback(() => {
+    if (readOnly) return;
     if (!draftId) {
       const action = draftCreated({ text, platformIds: selectedPlatformIds, media });
       dispatch(action);
@@ -121,7 +125,7 @@ export default function PostCreator() {
       );
     }
     setSaved(true);
-  }, [draftId, text, selectedPlatformIds, media, dispatch]);
+  }, [draftId, text, selectedPlatformIds, media, dispatch, readOnly]);
 
   const handleNewPost = useCallback(() => {
     setText('');
@@ -142,10 +146,11 @@ export default function PostCreator() {
   const handleDeleteDraft = useCallback(
     (id, e) => {
       e.stopPropagation();
+      if (readOnly) return;
       dispatch(draftDeleted(id));
       if (id === draftId) handleNewPost();
     },
-    [dispatch, draftId, handleNewPost]
+    [dispatch, draftId, handleNewPost, readOnly]
   );
 
   const tightestLimit = useMemo(() => {
@@ -159,8 +164,10 @@ export default function PostCreator() {
   return (
     <div className="post-creator">
       <div className="header">
-        <h2>Create Post</h2>
-        <p className="subtitle">Compose once, publish everywhere</p>
+        <h2>{readOnly ? 'View Posts' : 'Create Post'}</h2>
+        <p className="subtitle">
+          {readOnly ? 'Read-only — viewers cannot create or edit posts' : 'Compose once, publish everywhere'}
+        </p>
       </div>
 
       <div className="section-label">Platforms</div>
@@ -170,12 +177,13 @@ export default function PostCreator() {
           return (
             <label
               key={platform.id}
-              className={`platform-chip ${active ? 'active' : ''}`}
+              className={`platform-chip ${active ? 'active' : ''} ${readOnly ? 'disabled' : ''}`}
             >
               <input
                 type="checkbox"
                 checked={active}
                 onChange={() => togglePlatform(platform.id)}
+                disabled={readOnly}
               />
               <span className="chip-icon">{PLATFORM_ICONS[platform.id]}</span>
               {platform.name}
@@ -190,6 +198,7 @@ export default function PostCreator() {
         onChange={handleTextChange}
         placeholder="What do you want to share?"
         rows={6}
+        disabled={readOnly}
       />
 
       {tightestLimit !== null && (
@@ -207,9 +216,15 @@ export default function PostCreator() {
       )}
 
       <div className="media-row">
-        <label className="file-btn">
+        <label className={`file-btn ${readOnly ? 'disabled' : ''}`}>
           Attach media
-          <input type="file" multiple onChange={handleAddMedia} accept="image/*,video/*" />
+          <input
+            type="file"
+            multiple
+            onChange={handleAddMedia}
+            accept="image/*,video/*"
+            disabled={readOnly}
+          />
         </label>
         <span className="media-count">{media.length} attached</span>
       </div>
@@ -241,19 +256,21 @@ export default function PostCreator() {
         })}
       </div>
 
-      <div className="button-row">
-        <button
-          onClick={handleSaveDraft}
-          disabled={selectedPlatformIds.length === 0 || hasErrors}
-        >
-          {saved ? '✓ Draft Saved' : draftId ? 'Update Draft' : 'Save Draft'}
-        </button>
-        {draftId && (
-          <button className="secondary" onClick={handleNewPost} type="button">
-            New Post
+      {!readOnly && (
+        <div className="button-row">
+          <button
+            onClick={handleSaveDraft}
+            disabled={selectedPlatformIds.length === 0 || hasErrors}
+          >
+            {saved ? '✓ Draft Saved' : draftId ? 'Update Draft' : 'Save Draft'}
           </button>
-        )}
-      </div>
+          {draftId && (
+            <button className="secondary" onClick={handleNewPost} type="button">
+              New Post
+            </button>
+          )}
+        </div>
+      )}
 
       {drafts.length > 0 && (
         <>
@@ -266,7 +283,7 @@ export default function PostCreator() {
                 <div
                   key={draft.id}
                   className={`draft-item ${draft.id === draftId ? 'active' : ''}`}
-                  onClick={() => handleLoadDraft(draft)}
+                  onClick={() => !readOnly && handleLoadDraft(draft)}
                 >
                   <div className="draft-icons">
                     {draft.platformIds.map((pid) => (
@@ -281,14 +298,16 @@ export default function PostCreator() {
                   </div>
                   <div className="draft-meta">
                     <span>{timeAgo(draft.updatedAt)}</span>
-                    <button
-                      className="delete-btn"
-                      onClick={(e) => handleDeleteDraft(draft.id, e)}
-                      type="button"
-                      aria-label="Delete draft"
-                    >
-                      ✕
-                    </button>
+                    {!readOnly && (
+                      <button
+                        className="delete-btn"
+                        onClick={(e) => handleDeleteDraft(draft.id, e)}
+                        type="button"
+                        aria-label="Delete draft"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
