@@ -1,7 +1,6 @@
-// selectors.js
-// Experiment 1.2.2 / 1.1.2 — Memoized selectors for derived state & performance
 import { createSelector } from '@reduxjs/toolkit';
 
+// ---- Base (input) selectors — cheap, no computation ----
 const selectPostsState = (state) => state.posts.posts;
 const selectDraftsState = (state) => state.posts.drafts;
 const selectPlatformsState = (state) => state.posts.platforms;
@@ -20,6 +19,8 @@ export const selectAllPlatforms = createSelector(
   [selectPlatformsState],
   (platforms) => platforms.allIds.map((id) => platforms.byId[id])
 );
+
+// ---- Derived / filtered state ----
 
 export const makeSelectPostsByPlatform = () =>
   createSelector(
@@ -71,7 +72,28 @@ export const makeSelectDraftWithPlatforms = () =>
     }
   );
 
-  export const selectDraftCountByPlatform = createSelector(
+// ---- Experiment 1.4.1 — Calendar scheduling ----
+
+// Only drafts that have been assigned a scheduled date
+export const selectScheduledDrafts = createSelector(
+  [selectAllDrafts],
+  (drafts) => drafts.filter((d) => Boolean(d.scheduledAt))
+);
+
+// Group scheduled drafts by date ('YYYY-MM-DD') for the calendar grid —
+// memoized so the calendar doesn't recompute this on every unrelated render
+export const selectDraftsByScheduledDate = createSelector(
+  [selectScheduledDrafts],
+  (drafts) => {
+    const grouped = {};
+    for (const draft of drafts) {
+      (grouped[draft.scheduledAt] ??= []).push(draft);
+    }
+    return grouped;
+  }
+);
+
+export const selectDraftCountByPlatform = createSelector(
   [selectAllDrafts, selectAllPlatforms],
   (drafts, platforms) => {
     const counts = Object.fromEntries(platforms.map((p) => [p.id, 0]));

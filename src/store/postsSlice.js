@@ -1,10 +1,7 @@
-// postsSlice.js
-// Experiment 1.2.1 — Centralized state management with Redux Toolkit
-// Normalized state shape for posts, platforms, and drafts.
-
 import { createSlice, nanoid } from '@reduxjs/toolkit';
 
 const initialState = {
+  // Normalized: byId + allIds pattern for O(1) lookups & easy updates
   posts: {
     byId: {},
     allIds: [],
@@ -28,6 +25,7 @@ const postsSlice = createSlice({
   name: 'posts',
   initialState,
   reducers: {
+    // ---- Draft management ----
     draftCreated: {
       reducer(state, action) {
         const draft = action.payload;
@@ -62,6 +60,8 @@ const postsSlice = createSlice({
       delete state.drafts.byId[id];
       state.drafts.allIds = state.drafts.allIds.filter((d) => d !== id);
     },
+
+    // ---- Publishing a draft -> becomes a post ----
     draftPublished(state, action) {
       const id = action.payload;
       const draft = state.drafts.byId[id];
@@ -74,10 +74,21 @@ const postsSlice = createSlice({
       delete state.drafts.byId[id];
       state.drafts.allIds = state.drafts.allIds.filter((d) => d !== id);
     },
+
+    // ---- Direct post mutations ----
     postRemoved(state, action) {
       const id = action.payload;
       delete state.posts.byId[id];
       state.posts.allIds = state.posts.allIds.filter((p) => p !== id);
+    },
+
+    // ---- Experiment 1.4.1 — Scheduling ----
+    draftScheduled(state, action) {
+      const { id, scheduledAt } = action.payload;
+      if (state.drafts.byId[id]) {
+        state.drafts.byId[id].scheduledAt = scheduledAt; // ISO date string, e.g. '2026-07-28'
+        state.drafts.byId[id].updatedAt = Date.now();
+      }
     },
   },
 });
@@ -88,6 +99,7 @@ export const {
   draftDeleted,
   draftPublished,
   postRemoved,
+  draftScheduled,
 } = postsSlice.actions;
 
 export default postsSlice.reducer;
